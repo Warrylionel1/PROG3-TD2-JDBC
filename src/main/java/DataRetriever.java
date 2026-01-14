@@ -70,6 +70,52 @@ public class DataRetriever {
         }
     }
 
+    public List<Ingredient> createIngredients(List<Ingredient> newIngredients) {
+        if (newIngredients == null || newIngredients.isEmpty()) {
+            return List.of();
+        }
+        List<Ingredient> savedIngredients = new ArrayList<>();
+        DBConnection dbConnection = new DBConnection();
+        Connection conn = dbConnection.getConnection();
+        try {
+            conn.setAutoCommit(false);
+            String insertSql = """
+                        INSERT INTO ingredient (id, name, category, price)
+                        VALUES (?, ?, ?::ingredient_category, ?)
+                        RETURNING id
+                    """;
+            try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
+                for (Ingredient ingredient : newIngredients) {
+                    if (ingredient.getId() != null) {
+                        ps.setInt(1, ingredient.getId());
+                    } else {
+                        ps.setInt(1, getNextSerialValue(conn, "ingredient", "id"));
+                    }
+                    ps.setString(2, ingredient.getName());
+                    ps.setString(3, ingredient.getCategory().name());
+                    ps.setDouble(4, ingredient.getPrice());
+
+                    try (ResultSet rs = ps.executeQuery()) {
+                        rs.next();
+                        int generatedId = rs.getInt(1);
+                        ingredient.setId(generatedId);
+                        savedIngredients.add(ingredient);
+                    }
+                }
+                conn.commit();
+                return savedIngredients;
+            } catch (SQLException e) {
+                conn.rollback();
+                throw new RuntimeException(e);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            dbConnection.closeConnection(conn);
+        }
+    }
+
+
     private void detachIngredients(Connection conn, Integer dishId, List<Ingredient> ingredients)
             throws SQLException {
         if (ingredients == null || ingredients.isEmpty()) {
@@ -150,6 +196,58 @@ public class DataRetriever {
             return ingredients;
         } catch (SQLException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+
+    private String getSerialSequenceName(Connection conn, String tableName, String columnName)
+            throws SQLException {
+
+        String sql = "SELECT pg_get_serial_sequence(?, ?)";
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, tableName);
+            ps.setString(2, columnName);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString(1);
+                }
+            }
+        }
+        return null;
+    }
+
+    private int getNextSerialValue(Connection conn, String tableName, String columnName)
+            throws SQLException {
+
+        String sequenceName = getSerialSequenceName(conn, tableName, columnName);
+        if (sequenceName == null) {
+            throw new IllegalArgumentException(
+                    "Any sequence found for " + tableName + "." + columnName
+            );
+        }
+        updateSequenceNextValue(conn, tableName, columnName, sequenceName);
+
+        String nextValSql = "SELECT nextval(?)";
+
+        try (PreparedStatement ps = conn.prepareStatement(nextValSql)) {
+            ps.setString(1, sequenceName);
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getInt(1);
+            }
+        }
+    }
+
+    private void updateSequenceNextValue(Connection conn, String tableName, String columnName, String sequenceName) throws SQLException {
+        String setValSql = String.format(
+                "SELECT setval('%s', (SELECT COALESCE(MAX(%s), 0) FROM %s))",
+                sequenceName, columnName, tableName
+        );
+
+        try (PreparedStatement ps = conn.prepareStatement(setValSql)) {
+            ps.executeQuery();
         }
     }
 }
