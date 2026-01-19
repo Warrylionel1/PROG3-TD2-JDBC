@@ -35,12 +35,13 @@ public class DataRetriever {
 
     Dish saveDish(Dish toSave) {
         String upsertDishSql = """
-                    INSERT INTO dish (id, price, name, dish_type)
-                    VALUES (?, ?, ?, ?::dish_type)
-                    ON CONFLICT (id) DO UPDATE
-                    SET name = EXCLUDED.name,
-                        dish_type = EXCLUDED.dish_type
-                    RETURNING id
+                    INSERT INTO dish (id, name, dish_type, selling_price)
+                            VALUES (?, ?, ?::dish_type, ?)
+                            ON CONFLICT (id) DO UPDATE
+                            SET name = EXCLUDED.name,
+                                dish_type = EXCLUDED.dish_type,
+                                selling_price = EXCLUDED.selling_price
+                            RETURNING id
                 """;
 
         try (Connection conn = new DBConnection().getConnection()) {
@@ -52,10 +53,12 @@ public class DataRetriever {
                 } else {
                     ps.setInt(1, getNextSerialValue(conn, "dish", "id"));
                 }
+                ps.setString(2, toSave.getName());
+                ps.setString(3, toSave.getDishType().name());
                 if (toSave.getPrice() != null) {
-                    ps.setDouble(2, toSave.getPrice());
+                    ps.setDouble(4, toSave.getPrice());
                 } else {
-                    ps.setNull(2, Types.DOUBLE);
+                    ps.setNull(4, Types.DOUBLE);
                 }
                 ps.setString(3, toSave.getName());
                 ps.setString(4, toSave.getDishType().name());
@@ -131,7 +134,7 @@ public class DataRetriever {
             throws SQLException {
         if (ingredients == null || ingredients.isEmpty()) {
             try (PreparedStatement ps = conn.prepareStatement(
-                    "UPDATE ingredient SET id_dish = NULL WHERE id_dish = ?")) {
+                    "DELETE FROM dish_ingredient WHERE id_dish = ?")) {
                 ps.setInt(1, dishId);
                 ps.executeUpdate();
             }
@@ -139,9 +142,8 @@ public class DataRetriever {
         }
 
         String baseSql = """
-                    UPDATE ingredient
-                    SET id_dish = NULL
-                    WHERE id_dish = ? AND id NOT IN (%s)
+                    DELETE FROM dish_ingredient
+                    WHERE id_dish = ? AND id_ingredient  NOT IN (%s)
                 """;
 
         String inClause = ingredients.stream()
@@ -168,15 +170,19 @@ public class DataRetriever {
         }
 
         String attachSql = """
-                    UPDATE ingredient
-                    SET id_dish = ?
-                    WHERE id = ?
+                    INSERT INTO dish_ingredient (id, id_dish, id_ingredient, quantity_required, unit)
+                                    VALUES (?, ?, ?, ?, ?)
+                                    ON CONFLICT (id_dish, id_ingredient) DO UPDATE
+                                    SET quantity_required = EXCLUDED.quantity_required,
+                                        unit = EXCLUDED.unit
                 """;
 
         try (PreparedStatement ps = conn.prepareStatement(attachSql)) {
             for (Ingredient ingredient : ingredients) {
                 ps.setInt(1, dishId);
                 ps.setInt(2, ingredient.getId());
+                ps.setDouble(4, ingredient.getQuantityRequired());
+                ps.setString(5, ingredient.getUnit());
                 ps.addBatch(); // Can be substitute ps.executeUpdate() but bad performance
             }
             ps.executeBatch();
