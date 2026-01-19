@@ -10,9 +10,9 @@ public class DataRetriever {
         try {
             PreparedStatement preparedStatement = connection.prepareStatement(
                     """
-                            select dish.id as dish_id, dish.name as dish_name, dish_type, dish.price as dish_price
-                            from dish
-                            where dish.id = ?;
+                            SELECT d.id as dish_id, d.name as dish_name, d.dish_type, d.selling_price
+                                    FROM dish d
+                                    WHERE d.id = ?
                             """);
             preparedStatement.setInt(1, id);
             ResultSet resultSet = preparedStatement.executeQuery();
@@ -21,8 +21,8 @@ public class DataRetriever {
                 dish.setId(resultSet.getInt("dish_id"));
                 dish.setName(resultSet.getString("dish_name"));
                 dish.setDishType(DishTypeEnum.valueOf(resultSet.getString("dish_type")));
-                dish.setPrice(resultSet.getObject("dish_price") == null
-                        ? null : resultSet.getDouble("dish_price"));
+                dish.setSellingPrice(resultSet.getObject("selling_price") == null
+                        ? null : resultSet.getDouble("selling_price"));
                 dish.setIngredients(findIngredientByDishId(id));
                 return dish;
             }
@@ -190,8 +190,11 @@ public class DataRetriever {
         try {
             PreparedStatement preparedStatement = connection.prepareStatement(
                     """
-                            select ingredient.id, ingredient.name, ingredient.price, ingredient.category, ingredient.required_quantity
-                            from ingredient where id_dish = ?;
+                            SELECT i.id, i.name, i.price, i.category,
+                                                   di.quantity_required, di.unit
+                                            FROM ingredient i
+                                            INNER JOIN dish_ingredient di ON i.id = di.id_ingredient
+                                            WHERE di.id_dish = ?;
                             """);
             preparedStatement.setInt(1, idDish);
             ResultSet resultSet = preparedStatement.executeQuery();
@@ -201,8 +204,9 @@ public class DataRetriever {
                 ingredient.setName(resultSet.getString("name"));
                 ingredient.setPrice(resultSet.getDouble("price"));
                 ingredient.setCategory(CategoryEnum.valueOf(resultSet.getString("category")));
-                Object requiredQuantity = resultSet.getObject("required_quantity");
-                ingredient.setQuantity(requiredQuantity == null ? null : resultSet.getDouble("required_quantity"));
+                ingredient.setUnit(resultSet.getString("unit"));
+                Object requiredQuantity = resultSet.getObject("quantity_required");
+                ingredient.setQuantity(requiredQuantity == null ? null : resultSet.getDouble("quantity_required"));
                 ingredients.add(ingredient);
             }
             dbConnection.closeConnection(connection);
