@@ -3,23 +3,26 @@ import java.util.Objects;
 public class DishIngredient {
     private Integer id;
     private Ingredient ingredient;
+    private Dish dish;
     private Double quantity;
     private UnitEnum unit;
 
     public DishIngredient() {
     }
 
-    public DishIngredient(Integer id, Ingredient ingredient, Double quantity, UnitEnum unit) {
+    public DishIngredient(Integer id, Ingredient ingredient, Dish dish, Double quantity, UnitEnum unit) {
         this.id = id;
         this.ingredient = ingredient;
+        this.dish = dish;
         this.quantity = quantity;
         this.unit = unit;
     }
 
-    public DishIngredient(UnitEnum unit, Double quantity, Ingredient ingredient) {
+    public DishIngredient(UnitEnum unit, Double quantity, Ingredient ingredient, Dish dish) {
         this.unit = unit;
         this.quantity = quantity;
         this.ingredient = ingredient;
+        this.dish = dish;
     }
 
     public Integer getId() {
@@ -28,6 +31,14 @@ public class DishIngredient {
 
     public void setId(Integer id) {
         this.id = id;
+    }
+
+    public Dish getDish() {
+        return dish;
+    }
+
+    public void setDish(Dish dish) {
+        this.dish = dish;
     }
 
     public Ingredient getIngredient() {
@@ -42,7 +53,7 @@ public class DishIngredient {
         return quantity;
     }
 
-    public void setQuantity(Double quantityRequired) {
+    public void setQuantity(Double quantity) {
         this.quantity = quantity;
     }
 
@@ -58,7 +69,10 @@ public class DishIngredient {
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
         DishIngredient that = (DishIngredient) o;
-        return Objects.equals(id, that.id) && Objects.equals(ingredient, that.ingredient) && Objects.equals(quantity, that.quantity) && unit == that.unit;
+        return Objects.equals(id, that.id) &&
+                Objects.equals(ingredient, that.ingredient) &&
+                Objects.equals(quantity, that.quantity) &&
+                unit == that.unit;
     }
 
     @Override
@@ -70,8 +84,9 @@ public class DishIngredient {
     public String toString() {
         return "DishIngredient{" +
                 "id=" + id +
-                ", ingredient=" + ingredient +
-                ", quantityRequired=" + quantity +
+                ", ingredient=" + (ingredient != null ? ingredient.getName() : "null") +
+                ", dish=" + (dish != null ? dish.getName() : "null") +
+                ", quantity=" + quantity +
                 ", unit=" + unit +
                 '}';
     }
