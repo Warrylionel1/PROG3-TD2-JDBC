@@ -3,22 +3,22 @@ import java.util.Objects;
 public class DishIngredient {
     private Integer id;
     private Ingredient ingredient;
-    private Double quantityRequired;
+    private Double quantity;
     private UnitEnum unit;
 
     public DishIngredient() {
     }
 
-    public DishIngredient(Integer id, Ingredient ingredient, Double quantityRequired, UnitEnum unit) {
+    public DishIngredient(Integer id, Ingredient ingredient, Double quantity, UnitEnum unit) {
         this.id = id;
         this.ingredient = ingredient;
-        this.quantityRequired = quantityRequired;
+        this.quantity = quantity;
         this.unit = unit;
     }
 
-    public DishIngredient(UnitEnum unit, Double quantityRequired, Ingredient ingredient) {
+    public DishIngredient(UnitEnum unit, Double quantity, Ingredient ingredient) {
         this.unit = unit;
-        this.quantityRequired = quantityRequired;
+        this.quantity = quantity;
         this.ingredient = ingredient;
     }
 
@@ -38,12 +38,12 @@ public class DishIngredient {
         this.ingredient = ingredient;
     }
 
-    public Double getQuantityRequired() {
-        return quantityRequired;
+    public Double getQuantity() {
+        return quantity;
     }
 
-    public void setQuantityRequired(Double quantityRequired) {
-        this.quantityRequired = quantityRequired;
+    public void setQuantity(Double quantityRequired) {
+        this.quantity = quantity;
     }
 
     public UnitEnum getUnit() {
@@ -58,12 +58,12 @@ public class DishIngredient {
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
         DishIngredient that = (DishIngredient) o;
-        return Objects.equals(id, that.id) && Objects.equals(ingredient, that.ingredient) && Objects.equals(quantityRequired, that.quantityRequired) && unit == that.unit;
+        return Objects.equals(id, that.id) && Objects.equals(ingredient, that.ingredient) && Objects.equals(quantity, that.quantity) && unit == that.unit;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, ingredient, quantityRequired, unit);
+        return Objects.hash(id, ingredient, quantity, unit);
     }
 
     @Override
@@ -71,7 +71,7 @@ public class DishIngredient {
         return "DishIngredient{" +
                 "id=" + id +
                 ", ingredient=" + ingredient +
-                ", quantityRequired=" + quantityRequired +
+                ", quantityRequired=" + quantity +
                 ", unit=" + unit +
                 '}';
     }
