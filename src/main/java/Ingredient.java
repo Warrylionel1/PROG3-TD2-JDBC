@@ -5,32 +5,6 @@ public class Ingredient {
     private String name;
     private CategoryEnum category;
     private Double price;
-    private Double quantityRequired;
-    private String unit;
-
-    public Double getQuantityRequired() {
-        return quantityRequired;
-    }
-
-    public void setQuantityRequired(Double quantityRequired) {
-        this.quantityRequired = quantityRequired;
-    }
-
-    public Double getQuantity() {
-        return quantityRequired;
-    }
-
-    public void setQuantity(Double quantity) {
-        this.quantityRequired = quantity;
-    }
-
-    public String getUnit() {
-        return unit;
-    }
-
-    public void setUnit(String unit) {
-        this.unit = unit;
-    }
 
     public Ingredient() {
     }
@@ -44,16 +18,6 @@ public class Ingredient {
         this.name = name;
         this.category = category;
         this.price = price;
-    }
-
-    public Ingredient(Integer id, String name, CategoryEnum category, Double price,
-                      Double quantityRequired, String unit) {
-        this.id = id;
-        this.name = name;
-        this.category = category;
-        this.price = price;
-        this.quantityRequired = quantityRequired;
-        this.unit = unit;
     }
 
     public Integer getId() {
@@ -88,7 +52,6 @@ public class Ingredient {
         this.price = price;
     }
 
-
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
@@ -96,14 +59,12 @@ public class Ingredient {
         return Objects.equals(id, that.id) &&
                 Objects.equals(name, that.name) &&
                 category == that.category &&
-                Objects.equals(price, that.price) &&
-                Objects.equals(quantityRequired, that.quantityRequired) &&
-                Objects.equals(unit, that.unit);
+                Objects.equals(price, that.price);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, name, category, price, quantityRequired, unit);
+        return Objects.hash(id, name, category, price);
     }
 
     @Override
@@ -113,8 +74,6 @@ public class Ingredient {
                 ", name='" + name + '\'' +
                 ", category=" + category +
                 ", price=" + price +
-                ", quantityRequired=" + quantityRequired +
-                ", unit='" + unit + '\'' +
                 '}';
     }
 }
