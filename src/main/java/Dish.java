@@ -58,6 +58,30 @@ public class Dish {
         this.ingredients = ingredients;
     }
 
+    public Double getDishCost() {
+        if (ingredients == null || ingredients.isEmpty()) {
+            return 0.0;
+        }
+
+        double totalCost = 0.0;
+        for (DishIngredient dishIngredient : ingredients) {
+            Double quantity = dishIngredient.getQuantity(); // Utilise getQuantity()
+            if (quantity == null) {
+                throw new RuntimeException("Required quantity missing for ingredient: " +
+                        dishIngredient.getIngredient().getName());
+            }
+            totalCost += dishIngredient.getIngredient().getPrice() * quantity;
+        }
+        return totalCost;
+    }
+
+    public Double getGrossMargin() {
+        if (price == null) {
+            throw new RuntimeException("Selling price not defined for the dish: " + name);
+        }
+        return price - getDishCost();
+    }
+
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
