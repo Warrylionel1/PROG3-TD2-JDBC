@@ -5,51 +5,25 @@ public class Dish {
     private Integer id;
     private String name;
     private DishTypeEnum dishType;
-    private Double sellingPrice;
-    private List<Ingredient> ingredients;
-
-    public Double getSellingPrice() {
-        return sellingPrice;
-    }
-
-    public void setSellingPrice(Double sellingPrice) {
-        this.sellingPrice = sellingPrice;
-    }
-
-    public Double getPrice() {
-        return sellingPrice;
-    }
-
-    // Méthode setPrice gardée pour compatibilité
-    public void setPrice(Double price) {
-        this.sellingPrice = price;
-    }
-
-    public Double getDishCost() {
-        if (ingredients == null || ingredients.isEmpty()) {
-            return 0.0;
-        }
-
-        double totalCost = 0.0;
-        for (Ingredient ingredient : ingredients) {
-            Double quantity = ingredient.getQuantityRequired();
-            if (quantity == null) {
-                throw new RuntimeException("Quantité requise manquante pour l'ingrédient: " + ingredient.getName());
-            }
-            totalCost += ingredient.getPrice() * quantity;
-        }
-        return totalCost;
-    }
+    private Double price;
+    private List<DishIngredient> ingredients;
 
     public Dish() {
     }
 
-    public Dish(Integer id, String name, DishTypeEnum dishType, Double sellingPrice, List<Ingredient> ingredients) {
+    public Dish(Integer id, String name, DishTypeEnum dishType, Double price, List<DishIngredient> ingredients) {
         this.id = id;
         this.name = name;
         this.dishType = dishType;
-        this.sellingPrice = sellingPrice;
+        this.price = price;
         this.ingredients = ingredients;
+    }
+    public Double getPrice() {
+        return price;
+    }
+
+    public void setPrice(Double price) {
+        this.price = price;
     }
 
     public Integer getId() {
@@ -76,19 +50,12 @@ public class Dish {
         this.dishType = dishType;
     }
 
-    public List<Ingredient> getIngredients() {
+    public List<DishIngredient> getIngredients() {
         return ingredients;
     }
 
-    public void setIngredients(List<Ingredient> ingredients) {
+    public void setIngredients(List<DishIngredient> ingredients) {
         this.ingredients = ingredients;
-    }
-
-    public Double getGrossMargin() {
-        if (sellingPrice == null) {
-            throw new RuntimeException("Prix de vente non défini pour le plat: " + name);
-        }
-        return sellingPrice - getDishCost();
     }
 
     @Override
@@ -98,13 +65,13 @@ public class Dish {
         return Objects.equals(id, dish.id) &&
                 Objects.equals(name, dish.name) &&
                 dishType == dish.dishType &&
-                Objects.equals(sellingPrice, dish.sellingPrice) &&
+                Objects.equals(price, dish.price) &&
                 Objects.equals(ingredients, dish.ingredients);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, name, dishType, sellingPrice, ingredients);
+        return Objects.hash(id, name, dishType, price, ingredients);
     }
 
     @Override
@@ -113,7 +80,7 @@ public class Dish {
                 "id=" + id +
                 ", name='" + name + '\'' +
                 ", dishType=" + dishType +
-                ", sellingPrice=" + sellingPrice +
+                ", price=" + price +
                 ", ingredients=" + ingredients +
                 '}';
     }
