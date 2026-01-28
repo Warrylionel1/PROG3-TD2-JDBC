@@ -16,3 +16,15 @@ ALTER TABLE ingredient
 
 ALTER TABLE ingredient
     DROP COLUMN IF EXISTS required_quantity;
+
+CREATE TYPE movement_type AS ENUM ('IN', 'OUT');
+
+CREATE TABLE IF NOT EXISTS stock_movement
+(
+    id SERIAL PRIMARY KEY,
+    id_ingredient INTEGER NOT NULL REFERENCES ingredient(id),
+    quantity DECIMAL(10,3) NOT NULL,
+    type movement_type NOT NULL,
+    unit VARCHAR(10) DEFAULT 'KG',
+    creation_datetime TIMESTAMP NOT NULL
+);
