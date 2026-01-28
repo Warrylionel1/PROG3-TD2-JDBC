@@ -67,6 +67,31 @@ public class Ingredient {
         this.stockMovementList = stockMovementList;
     }
 
+    public Double getStockValueAt(Instant t) {
+        if (stockMovementList == null || stockMovementList.isEmpty()) {
+            return 0.0;
+        }
+
+        double stock = 0.0;
+
+        for (StockMovement movement : stockMovementList) {
+            if (movement.getCreationDateTime().isBefore(t) ||
+                    movement.getCreationDateTime().equals(t)) {
+
+                Double quantity = movement.getValue().getQuantity();
+                MovementType type = movement.getType();
+
+                if (type == MovementType.IN) {
+                    stock += quantity;
+                } else if (type == MovementType.OUT) {
+                    stock -= quantity;
+                }
+            }
+        }
+
+        return stock;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
