@@ -264,6 +264,72 @@ public class DataRetriever {
         }
     }
 
+    public Ingredient saveIngredient(Ingredient toSave) {
+        try (Connection conn = new DBConnection().getConnection()) {
+            conn.setAutoCommit(false);
+
+            String upsertIngredientSql = """
+                INSERT INTO ingredient (id, name, category, price)
+                VALUES (?, ?, ?::ingredient_category, ?)
+                ON CONFLICT (id) DO UPDATE
+                SET name = EXCLUDED.name,
+                    category = EXCLUDED.category,
+                    price = EXCLUDED.price
+                RETURNING id
+            """;
+
+            Integer ingredientId;
+            try (PreparedStatement ps = conn.prepareStatement(upsertIngredientSql)) {
+                if (toSave.getId() != null && toSave.getId() > 0) {
+                    ps.setInt(1, toSave.getId());
+                } else {
+                    ps.setInt(1, getNextSerialValue(conn, "ingredient", "id"));
+                }
+
+                ps.setString(2, toSave.getName());
+                ps.setString(3, toSave.getCategory().name());
+                ps.setDouble(4, toSave.getPrice());
+
+                try (ResultSet rs = ps.executeQuery()) {
+                    rs.next();
+                    ingredientId = rs.getInt(1);
+                    toSave.setId(ingredientId);
+                }
+            }
+
+            if (toSave.getStockMovementList() != null && !toSave.getStockMovementList().isEmpty()) {
+                String insertMovementSql = """
+                    INSERT INTO stock_movement (id, id_ingredient, quantity, type, unit, creation_datetime)
+                    VALUES (?, ?, ?, ?, ?::unit_enum, ?)
+                    ON CONFLICT (id) DO NOTHING
+                """;
+
+                try (PreparedStatement ps = conn.prepareStatement(insertMovementSql)) {
+                    for (StockMovement movement : toSave.getStockMovementList()) {
+                        ps.setInt(1, movement.getId());
+                        ps.setInt(2, ingredientId);
+
+                        StockValue value = movement.getValue();
+                        ps.setDouble(3, value.getQuantity());
+                        ps.setString(4, movement.getType().name());
+                        ps.setString(5, value.getUnit().name());
+                        ps.setTimestamp(6, Timestamp.from(movement.getCreationDateTime()));
+
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                }
+            }
+
+            conn.commit();
+            return toSave;
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error saving ingredient", e);
+        }
+    }
+
+
     public Double getDishCost(Integer dishId) {
         try (Connection conn = new DBConnection().getConnection()) {
             PreparedStatement ps = conn.prepareStatement(
