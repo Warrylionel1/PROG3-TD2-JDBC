@@ -3,30 +3,18 @@ import java.util.Objects;
 
 public class StockMovement {
     private Integer id;
-    private Ingredient ingredient;
-    private Double quantity;
+    private StockValue value;
     private MovementType type;
-    private UnitEnum unit;
     private Instant creationDateTime;
 
     public StockMovement() {
     }
 
-    public StockMovement(Ingredient ingredient, Integer id, Double quantity, MovementType type, UnitEnum unit, Instant creationDateTime) {
-        this.ingredient = ingredient;
+    public StockMovement(Integer id, StockValue value, MovementType type, Instant creationDateTime) {
         this.id = id;
-        this.quantity = quantity;
+        this.value = value;
         this.type = type;
-        this.unit = unit;
         this.creationDateTime = creationDateTime;
-    }
-
-    public StockMovement(Double quantity, MovementType type, UnitEnum unit, Instant creationDateTime, Ingredient ingredient) {
-        this.quantity = quantity;
-        this.type = type;
-        this.unit = unit;
-        this.creationDateTime = creationDateTime;
-        this.ingredient = ingredient;
     }
 
     public Integer getId() {
@@ -37,20 +25,12 @@ public class StockMovement {
         this.id = id;
     }
 
-    public Ingredient getIngredient() {
-        return ingredient;
+    public StockValue getValue() {
+        return value;
     }
 
-    public void setIngredient(Ingredient ingredient) {
-        this.ingredient = ingredient;
-    }
-
-    public Double getQuantity() {
-        return quantity;
-    }
-
-    public void setQuantity(Double quantity) {
-        this.quantity = quantity;
+    public void setValue(StockValue value) {
+        this.value = value;
     }
 
     public MovementType getType() {
@@ -59,14 +39,6 @@ public class StockMovement {
 
     public void setType(MovementType type) {
         this.type = type;
-    }
-
-    public UnitEnum getUnit() {
-        return unit;
-    }
-
-    public void setUnit(UnitEnum unit) {
-        this.unit = unit;
     }
 
     public Instant getCreationDateTime() {
@@ -81,22 +53,20 @@ public class StockMovement {
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
         StockMovement that = (StockMovement) o;
-        return Objects.equals(id, that.id) && Objects.equals(ingredient, that.ingredient) && Objects.equals(quantity, that.quantity) && type == that.type && unit == that.unit && Objects.equals(creationDateTime, that.creationDateTime);
+        return Objects.equals(id, that.id) && Objects.equals(value, that.value) && type == that.type && Objects.equals(creationDateTime, that.creationDateTime);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, ingredient, quantity, type, unit, creationDateTime);
+        return Objects.hash(id, value, type, creationDateTime);
     }
 
     @Override
     public String toString() {
         return "StockMovement{" +
                 "id=" + id +
-                ", ingredient=" + ingredient +
-                ", quantity=" + quantity +
+                ", value=" + value +
                 ", type=" + type +
-                ", unit=" + unit +
                 ", creationDateTime=" + creationDateTime +
                 '}';
     }
