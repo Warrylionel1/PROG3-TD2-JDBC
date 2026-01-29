@@ -64,7 +64,6 @@ public class DataRetriever {
     }
 
     Order saveOrder(Order orderToSave) {
-        // Vérifier si la commande existe déjà et est payée
         if (orderToSave.getId() != null) {
             try {
                 Order existingOrder = findOrderByReference(orderToSave.getReference());
@@ -72,14 +71,12 @@ public class DataRetriever {
                     throw new RuntimeException("Cannot modify order: Order has already been paid");
                 }
             } catch (RuntimeException e) {
-                // Si la commande n'existe pas encore, on continue
                 if (!e.getMessage().contains("Order not found")) {
                     throw e;
                 }
             }
         }
 
-        // Vérification de la disponibilité des ingrédients
         if (orderToSave.getDishOrderList() != null) {
             for (DishOrder dishOrder : orderToSave.getDishOrderList()) {
                 Dish dish = dishOrder.getDish();
@@ -143,7 +140,6 @@ public class DataRetriever {
             resultSet.close();
             preparedStatement.close();
 
-            // Supprimer les anciens dish_order si mise à jour
             if (orderToSave.getId() != null) {
                 String deleteDishOrderSql = "DELETE FROM dish_order WHERE id_order = ?";
                 PreparedStatement deleteStmt = connection.prepareStatement(deleteDishOrderSql);
@@ -152,7 +148,6 @@ public class DataRetriever {
                 deleteStmt.close();
             }
 
-            // Insérer les nouveaux dish_order
             if (orderToSave.getDishOrderList() != null && !orderToSave.getDishOrderList().isEmpty()) {
                 String insertDishOrderSql = """
                 INSERT INTO dish_order (id, id_order, id_dish, quantity)
@@ -171,7 +166,6 @@ public class DataRetriever {
                 dishOrderStmt.close();
             }
 
-            // Mettre à jour les stocks seulement si la commande est en statut UNPAID
             if (orderToSave.getPaymentStatusEnum() == null ||
                     orderToSave.getPaymentStatusEnum() == PaymentStatusEnum.UNPAID) {
                 if (orderToSave.getDishOrderList() != null) {
