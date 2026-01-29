@@ -11,7 +11,7 @@ public class DataRetriever {
         DBConnection dbConnection = new DBConnection();
         try (Connection connection = dbConnection.getConnection()) {
             PreparedStatement preparedStatement = connection.prepareStatement("""
-                    select id, reference, creation_datetime from "order" where reference like ?""");
+                    select id, reference, creation_datetime, payment_status from "order" where reference like ?""");
             preparedStatement.setString(1, reference);
             ResultSet resultSet = preparedStatement.executeQuery();
             if (resultSet.next()) {
@@ -20,8 +20,18 @@ public class DataRetriever {
                 order.setId(idOrder);
                 order.setReference(resultSet.getString("reference"));
                 order.setCreationDatetime(resultSet.getTimestamp("creation_datetime").toInstant());
+
+                String paymentStatus = resultSet.getString("payment_status");
+                if (paymentStatus != null) {
+                    order.setPaymentStatusEnum(PaymentStatusEnum.valueOf(paymentStatus));
+                } else {
+                    order.setPaymentStatusEnum(PaymentStatusEnum.UNPAID);
+                }
+
                 order.setDishOrderList(findDishOrderByIdOrder(idOrder));
                 return order;
+
+
             }
             throw new RuntimeException("Order not found with reference " + reference);
         } catch (SQLException e) {
@@ -56,6 +66,13 @@ public class DataRetriever {
     }
 
     Order saveOrder(Order orderToSave) {
+
+        if (orderToSave.getId() != null) {
+            Order existingOrder = findOrderByReference(orderToSave.getReference());
+            if (existingOrder.getPaymentStatusEnum() == PaymentStatusEnum.PAID) {
+                throw new RuntimeException("Cannot modify order: Order has already been paid.");
+            }
+        }
         for (DishOrder dishOrder : orderToSave.getDishOrderList()) {
             Dish dish = dishOrder.getDish();
             Integer quantityOrdered = dishOrder.getQuantity();
@@ -67,7 +84,7 @@ public class DataRetriever {
 
                     StockValue currentStock = ingredient.getStockValueAt(Instant.now());
                     if (currentStock == null || currentStock.getQuantity() < requiredQuantity) {
-                        throw new RuntimeException("Stock insuffisant pour l'ingrédient: " + ingredient.getName());
+                        throw new RuntimeException("Insufficient stock for ingredient: " + ingredient.getName());
                     }
                 }
             }
@@ -78,11 +95,12 @@ public class DataRetriever {
         try {
             PreparedStatement preparedStatement = connection.prepareStatement(
                     """
-                            INSERT INTO "order" (id, reference, creation_datetime)
-                                    VALUES (?, ?, ?)
+                            INSERT INTO "order" (id, reference, creation_datetime, payment_status)
+                                    VALUES (?, ?, ?, ?::payment_status)
                                     ON CONFLICT (id) DO UPDATE
                                     SET reference = EXCLUDED.reference,
-                                        creation_datetime = EXCLUDED.creation_datetime
+                                        creation_datetime = EXCLUDED.creation_datetime,
+                                        payment_status = EXCLUDED.payment_status
                                     RETURNING id;
                             """
             );
@@ -101,6 +119,12 @@ public class DataRetriever {
                 preparedStatement.setTimestamp(3, Timestamp.from(Instant.now()));
             }
 
+            if (orderToSave.getPaymentStatusEnum() != null) {
+                preparedStatement.setString(4, orderToSave.getPaymentStatusEnum().name());
+            } else {
+                preparedStatement.setString(4, PaymentStatusEnum.UNPAID.name());
+            }
+
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
                 Orderid = resultSet.getInt("id");
@@ -109,50 +133,61 @@ public class DataRetriever {
             resultSet.close();
             preparedStatement.close();
 
-            if (orderToSave.getDishOrderList() != null && !orderToSave.getDishOrderList().isEmpty()) {
-                String insertDishOrderSql = """
-                INSERT INTO dish_order (id, id_order, id_dish, quantity)
-                VALUES (?, ?, ?, ?)
+            if (orderToSave.getId() != null) {
+                String deleteDishOrderSql = """
+                DELETE FROM dish_order where id = ?
                 """;
-                PreparedStatement dishOrderStmt = connection.prepareStatement(insertDishOrderSql);
-
-                for (DishOrder dishOrder : orderToSave.getDishOrderList()) {
-                    dishOrderStmt.setInt(1, getNextSerialValue(connection, "dish_order", "id"));
-                    dishOrderStmt.setInt(2, orderToSave.getId());
-                    dishOrderStmt.setInt(3, dishOrder.getDish().getId());
-                    dishOrderStmt.setInt(4, dishOrder.getQuantity());
-                    dishOrderStmt.addBatch();
-                }
-                dishOrderStmt.executeBatch();
-                dishOrderStmt.close();
+                PreparedStatement deleteDishOrderPreparedStatement = connection.prepareStatement(deleteDishOrderSql);
+                deleteDishOrderPreparedStatement.setInt(1, orderToSave.getId());
+                deleteDishOrderPreparedStatement.executeUpdate();
+                deleteDishOrderPreparedStatement.close();
             }
 
-            for (DishOrder dishOrder : orderToSave.getDishOrderList()) {
-                Dish dish = dishOrder.getDish();
-                Integer dishQuantity = dishOrder.getQuantity();
+            if (orderToSave.getId() != null && !orderToSave.getDishOrderList().isEmpty()) {
+                String insertDishOrderSql = """
+                INSERT INTO dish_order (id, id_dish, quantity) values (?, ?, ?)
+                """;
+                PreparedStatement insertDishOrderPreparedStatement = connection.prepareStatement(insertDishOrderSql);
+                for (DishOrder dishOrder : orderToSave.getDishOrderList()) {
+                    insertDishOrderPreparedStatement.setInt(1, getNextSerialValue(connection, "dish_order", "id"));
+                    insertDishOrderPreparedStatement.setInt(2, dishOrder.getId());
+                    insertDishOrderPreparedStatement.setInt(3, dishOrder.getQuantity());
+                    insertDishOrderPreparedStatement.addBatch();
+                }
 
-                if (dish.getDishIngredients() != null) {
-                    for (DishIngredient dishIngredient : dish.getDishIngredients()) {
-                        Ingredient ingredient = dishIngredient.getIngredient();
-                        Double quantityToDeduct = dishIngredient.getQuantity() * dishQuantity;
+                insertDishOrderPreparedStatement.executeBatch();
+                insertDishOrderPreparedStatement.close();
+            }
 
-                        StockMovement stockMovement = new StockMovement();
-                        stockMovement.setType(MovementTypeEnum.OUT);
-                        stockMovement.setCreationDatetime(Instant.now());
+            if (orderToSave.getPaymentStatusEnum() == null ||
+                    orderToSave.getPaymentStatusEnum() == PaymentStatusEnum.UNPAID) {
+                for (DishOrder dishOrder : orderToSave.getDishOrderList()) {
+                    Dish dish = dishOrder.getDish();
+                    Integer dishQuantity = dishOrder.getQuantity();
 
-                        StockValue stockValue = new StockValue();
-                        stockValue.setQuantity(quantityToDeduct);
-                        stockValue.setUnit(dishIngredient.getUnit());
-                        stockMovement.setValue(stockValue);
+                    if (dish.getDishIngredients() != null) {
+                        for (DishIngredient dishIngredient : dish.getDishIngredients()) {
+                            Ingredient ingredient = dishIngredient.getIngredient();
+                            Double quantityToDeduct = dishIngredient.getQuantity() * dishQuantity;
 
-                        List<StockMovement> movements = ingredient.getStockMovementList();
-                        if (movements == null) {
-                            movements = new ArrayList<>();
+                            StockMovement stockMovement = new StockMovement();
+                            stockMovement.setType(MovementTypeEnum.OUT);
+                            stockMovement.setCreationDatetime(Instant.now());
+
+                            StockValue stockValue = new StockValue();
+                            stockValue.setQuantity(quantityToDeduct);
+                            stockValue.setUnit(dishIngredient.getUnit());
+                            stockMovement.setValue(stockValue);
+
+                            List<StockMovement> movements = ingredient.getStockMovementList();
+                            if (movements == null) {
+                                movements = new ArrayList<>();
+                            }
+                            movements.add(stockMovement);
+                            ingredient.setStockMovementList(movements);
+
+                            saveIngredient(ingredient);
                         }
-                        movements.add(stockMovement);
-                        ingredient.setStockMovementList(movements);
-
-                        saveIngredient(ingredient);
                     }
                 }
             }
