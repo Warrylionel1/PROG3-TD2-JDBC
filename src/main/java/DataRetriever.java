@@ -1,4 +1,5 @@
 import java.sql.*;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +50,118 @@ public class DataRetriever {
             }
             dbConnection.closeConnection(connection);
             return dishOrders;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    Order saveOrder(Order orderToSave) {
+        for (DishOrder dishOrder : orderToSave.getDishOrderList()) {
+            Dish dish = dishOrder.getDish();
+            Integer quantityOrdered = dishOrder.getQuantity();
+
+            if (dish.getDishIngredients() != null) {
+                for (DishIngredient dishIngredient : dish.getDishIngredients()) {
+                    Ingredient ingredient = dishIngredient.getIngredient();
+                    Double requiredQuantity = dishIngredient.getQuantity() * quantityOrdered;
+
+                    StockValue currentStock = ingredient.getStockValueAt(Instant.now());
+                    if (currentStock == null || currentStock.getQuantity() < requiredQuantity) {
+                        throw new RuntimeException("Stock insuffisant pour l'ingrédient: " + ingredient.getName());
+                    }
+                }
+            }
+        }
+
+        DBConnection dbConnection = new DBConnection();
+        Connection connection = dbConnection.getConnection();
+        try {
+            PreparedStatement preparedStatement = connection.prepareStatement(
+                    """
+                            INSERT INTO "order" (id, reference, creation_datetime)
+                                    VALUES (?, ?, ?)
+                                    ON CONFLICT (id) DO UPDATE
+                                    SET reference = EXCLUDED.reference,
+                                        creation_datetime = EXCLUDED.creation_datetime
+                                    RETURNING id;
+                            """
+            );
+            connection.setAutoCommit(false);
+            Integer Orderid;
+            if (orderToSave.getId() != null) {
+                preparedStatement.setInt(1, orderToSave.getId());
+            } else {
+                preparedStatement.setInt(1, getNextSerialValue(connection, "order", "id"));
+            }
+            preparedStatement.setString(2, orderToSave.getReference());
+
+            if (orderToSave.getCreationDatetime() != null) {
+                preparedStatement.setTimestamp(3, Timestamp.from(orderToSave.getCreationDatetime()));
+            } else {
+                preparedStatement.setTimestamp(3, Timestamp.from(Instant.now()));
+            }
+
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                Orderid = resultSet.getInt("id");
+                orderToSave.setId(Orderid);
+            }
+            resultSet.close();
+            preparedStatement.close();
+
+            if (orderToSave.getDishOrderList() != null && !orderToSave.getDishOrderList().isEmpty()) {
+                String insertDishOrderSql = """
+                INSERT INTO dish_order (id, id_order, id_dish, quantity)
+                VALUES (?, ?, ?, ?)
+                """;
+                PreparedStatement dishOrderStmt = connection.prepareStatement(insertDishOrderSql);
+
+                for (DishOrder dishOrder : orderToSave.getDishOrderList()) {
+                    dishOrderStmt.setInt(1, getNextSerialValue(connection, "dish_order", "id"));
+                    dishOrderStmt.setInt(2, orderToSave.getId());
+                    dishOrderStmt.setInt(3, dishOrder.getDish().getId());
+                    dishOrderStmt.setInt(4, dishOrder.getQuantity());
+                    dishOrderStmt.addBatch();
+                }
+                dishOrderStmt.executeBatch();
+                dishOrderStmt.close();
+            }
+
+            for (DishOrder dishOrder : orderToSave.getDishOrderList()) {
+                Dish dish = dishOrder.getDish();
+                Integer dishQuantity = dishOrder.getQuantity();
+
+                if (dish.getDishIngredients() != null) {
+                    for (DishIngredient dishIngredient : dish.getDishIngredients()) {
+                        Ingredient ingredient = dishIngredient.getIngredient();
+                        Double quantityToDeduct = dishIngredient.getQuantity() * dishQuantity;
+
+                        StockMovement stockMovement = new StockMovement();
+                        stockMovement.setType(MovementTypeEnum.OUT);
+                        stockMovement.setCreationDatetime(Instant.now());
+
+                        StockValue stockValue = new StockValue();
+                        stockValue.setQuantity(quantityToDeduct);
+                        stockValue.setUnit(dishIngredient.getUnit());
+                        stockMovement.setValue(stockValue);
+
+                        List<StockMovement> movements = ingredient.getStockMovementList();
+                        if (movements == null) {
+                            movements = new ArrayList<>();
+                        }
+                        movements.add(stockMovement);
+                        ingredient.setStockMovementList(movements);
+
+                        saveIngredient(ingredient);
+                    }
+                }
+            }
+
+            connection.commit();
+            dbConnection.closeConnection(connection);
+
+            return findOrderByReference(orderToSave.getReference());
+
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
