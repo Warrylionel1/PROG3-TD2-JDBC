@@ -7,6 +7,8 @@ public class Order {
     private String reference;
     private Instant creationDatetime;
     private List<DishOrder> dishOrderList;
+    private Sale sale;
+    private PaymentStatusEnum paymentStatusEnum;
 
     public Integer getId() {
         return id;
@@ -38,6 +40,22 @@ public class Order {
 
     public void setDishOrderList(List<DishOrder> dishOrderList) {
         this.dishOrderList = dishOrderList;
+    }
+
+    public Sale getSale() {
+        return sale;
+    }
+
+    public void setSale(Sale sale) {
+        this.sale = sale;
+    }
+
+    public PaymentStatusEnum getPaymentStatusEnum() {
+        return paymentStatusEnum;
+    }
+
+    public void setPaymentStatusEnum(PaymentStatusEnum paymentStatusEnum) {
+        this.paymentStatusEnum = paymentStatusEnum;
     }
 
     @Override
